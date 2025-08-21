@@ -1,6 +1,4 @@
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.util.Scanner;
 
@@ -11,11 +9,12 @@ public class Client{
     private BufferedWriter sender;
     private String uname;
 
-    public Client(Socket socket,BufferedReader receiver,BufferedWriter sender ){
+    public Client(Socket socket, String uname){
         try{
             this.socket = socket;
-            this.receiver = receiver;
-            this.sender = sender;
+            this.receiver = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            this.sender = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+            this.uname = uname;
         }catch(Exception e){
             closeAllStreams(socket, receiver, sender);
         }
@@ -52,10 +51,39 @@ public class Client{
             
             }
         }catch(IOException e){
-            closeAllStreams(this.socket, this.sender, this.receiver);
+            closeAllStreams(socket, receiver, sender);
         }
 
         
+    }
+    public void listenForMessage(){
+        new Thread(new Runnable(){
+            @Override
+            public void run(){
+                String message;
+                while(socket.isConnected()){
+                    try{
+                        message = receiver.readLine();
+                        System.out.println(message);
+
+                    }catch(IOException e){
+                        closeAllStreams(socket, receiver, sender);
+                    }
+                }
+            }
+        }).start();
+    }
+
+    public static void main(String[] args) throws IOException {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("uname: ");
+        String uname = scanner.nextLine();
+        Socket socket = new Socket("localhost", 8000);
+        Client client = new Client(socket, uname);
+        client.listenForMessage();
+        client.sendMessage();
+
+
     }
 }
 
