@@ -62,18 +62,45 @@ class ClientHandler implements Runnable{
 
     }
 
-    public void broadCastMsg(String msg){
+    public void broadCastMsg(String msg) {
         try {
             for (ClientHandler client : clientHandlers) {
-                if(!client.uname.equals(uname)){
-                    client.sender.write(msg);
-                    client.sender.newLine();
-                    client.sender.flush();
+                if (!client.uname.equals(uname)) {
+                    if (msg.startsWith("FILE:")) {
+                        // Insert sender's username into the file message
+                        String[] parts = msg.split(":");
+                        if (parts.length == 3) {
+                            // Format: FILE:sender:filename:filesize
+                            String modifiedMsg = "FILE:" + uname + ":" + parts[1] + ":" + parts[2];
+                            client.sender.write(modifiedMsg);
+                            client.sender.newLine();
+                            client.sender.flush();
+                            forwardFileChunks(client);
+                        }
+                    } else {
+                        client.sender.write(msg);
+                        client.sender.newLine();
+                        client.sender.flush();
+                    }
                 }
-                
             }
         } catch (IOException e) {
             closeAllStreams(socket, reciever, sender);
+        }
+    }
+
+    private void forwardFileChunks(ClientHandler client) throws IOException {
+        String line;
+        while ((line = reciever.readLine()) != null) {
+            if (line.equals("END:FILE")) {
+                client.sender.write(line);
+                client.sender.newLine();
+                client.sender.flush();
+                break;
+            }
+            client.sender.write(line);
+            client.sender.newLine();
+            client.sender.flush();
         }
     }
 
